@@ -7,8 +7,12 @@ import imageio
 from PIL import Image
 # link = "https://i.pximg.net/img-original/img/2021/04/07/20/24/43/88998885_p0.jpg"
 
-def download(link, name):
-    with open(name+".png", 'wb') as f:
+def download(link, name, folder=""):
+    if folder : 
+        folder = str(folder)
+        folder ="img_"+folder+"/"
+        os.makedirs(folder, exist_ok=True)
+    with open(folder+name+".png", 'wb') as f:
         im = requests.get(link, headers={'referer': 'https://www.pixiv.net/'})
         f.write(im.content)
 
@@ -51,14 +55,14 @@ def gifProcessing(artworkID,delay):
     shutil.rmtree('temp_pixiv')
 
 
-def get_user_picture(id_user):
+def get_user_picture(id_user, num_of_pic):
     link = f"https://www.pixiv.net/ajax/user/{id_user}/profile/all?lang=en"
     f = requests.get(link)
     body = list(f.json()['body']['illusts'].keys())
-    for id_img in body[:5]:
+    for id_img in body[:num_of_pic]:
         img = get_img(id_img)
         print(img) 
-        download(img, id_img)
+        download(img, id_img, id_user)
 
 import urllib.request as ur
 import re
@@ -77,5 +81,6 @@ def getpicfrompixiv(artworkID):
 
 if __name__ == '__main__':
     # get_user_picture(6357652)
-    get_gif(87841313)
+    # get_gif(87841313)
+    get_user_picture(31317880, -1)
 
