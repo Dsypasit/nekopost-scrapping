@@ -31,7 +31,10 @@ def get_chapter(chapter, chapter_name, title, name):
     pbar = tqdm(total=len(pages))
     update = 1
     for page in pages:
-        img_link = get_img_link(page['fileName'], chapter['id'], title)
+        if "fileName" in page.keys():
+            img_link = get_img_link(page["fileName"], chapter['id'], title)
+        else:
+            img_link = get_img_link(page["pageName"], chapter['id'], title)
         download(img_link, chapter_name, page['pageNo'], name)
         pbar.update(update)
     pbar.close()
