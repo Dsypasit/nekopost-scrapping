@@ -4,7 +4,8 @@ import time
 from tqdm import tqdm
 
 def get_img_link(fileName, chapter, title):
-    return f"https://fs.nekopost.net/collectManga/{title}/{chapter}/{fileName}"
+    # return f"https://fs.nekopost.net/collectManga/{title}/{chapter}/{fileName}"
+    return f"https://www.osemocphoto.com/collectManga/{title}/{chapter}/{fileName}"
 
 def cut_name(n):
     return ''.join([i for i in n if i != '/' ])
@@ -36,32 +37,27 @@ def get_chapter(chapter, chapter_name, title, name):
     pbar.close()
 
 def get_all_chapter_link(title):
-    chapter_raw = requests.get(f'https://tuner.nekopost.net/ApiTest/getProjectDetailFull/{title}')
+    chapter_raw = requests.get(f'https://api.osemocphoto.com/frontAPI/getProjectInfo/{title}')
     data = chapter_raw.json()
-    chapters = data['projectChapterList']
-    name = data['projectInfo']['np_name']
-    print(name)
+    chapters = data['listChapter']
+    name = data['projectInfo']['projectName']
     chapter_dict = {}
+    chaptersNo = []
     for chapter in chapters:
-        chapter_dict[chapter['nc_chapter_no']]= {'id': chapter['nc_chapter_id']}
-        chapter_dict[chapter['nc_chapter_no']]['link'] = f'https://fs.nekopost.net/collectManga/{title}/{chapter["nc_chapter_id"]}/{title}_{chapter["nc_chapter_id"]}.json'
-    chapter_keys = [int(i) for i in chapter_dict.keys()]
-    chapter_keys.sort()
+        chapterId = chapter['chapterId']
+        chapterNo = chapter['chapterNo']
+        chaptersNo.append(chapterNo)
+        chapter_dict[chapterNo] = {'id':chapterId}
+        chapter_dict[chapterNo]["chapter"] = chapter['chapterNo']
+        chapter_dict[chapterNo]['link'] = f'https://www.osemocphoto.com/collectManga/{title}/{chapterId}/{title}_{chapterId}.json'
+    chapter_keys = [i for i in chapter_dict.keys()][::-1]
+    print(f"{name} have chapter {chapter_keys}")
     chapter_need = input(f"Enter your chapter ({chapter_keys[0]} - {chapter_keys[-1]}): ")
-    chapter_keys = [str(i) for i in chapter_keys]
     chapter_need = chapter_need.split()
     if len(chapter_need) == 0:
         for chapter in chapter_keys:
             print("chapter : " + chapter)
             get_chapter(chapter_dict[chapter], chapter, title, name)
-
-    elif chapter_need[0] == ":":
-        start = int(chapter_need[1])-1
-        stop =  int(chapter_need[2])
-        for chapter in chapter_keys[start:stop]:
-            print("chapter : " + chapter)
-            get_chapter(chapter_dict[chapter], chapter, title, name)
-
     else:
         for chapter in chapter_need:
             print("chapter : " + chapter)
