@@ -8,12 +8,20 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
 
+var fileMutex sync.Mutex
+
 func main() {
-	getAllChapterLink("8969")
+	var titleID string
+	mainlink := "https://www.nekopost.net/"
+	fmt.Printf("Please enter your titleID you want (%s): ", mainlink)
+	fmt.Scan(&titleID)
+	fmt.Println("Gotcha!! We will loading...")
+	getAllChapterLink(titleID)
 }
 
 type image struct {
@@ -28,10 +36,7 @@ func getImageLink(filename string, chapter string, titleID string) string {
 	return fmt.Sprintf("https://www.osemocphoto.com/collectManga/%s/%s/%s", titleID, chapter, filename)
 }
 
-func getRespones(link string) (*http.Response, error) {
-	client := http.Client{
-		Timeout: time.Second * 10,
-	}
+func getRespones(client *http.Client, link string) (*http.Response, error) {
 	req, err := http.NewRequest("GET", link, nil)
 	req.Header.Set("Referer", "https://www.nekopost.net/")
 	req.Header.Set("Host", "www.osemocphoto.com")
@@ -47,11 +52,17 @@ func download(i image, wg *sync.WaitGroup) {
 	folder := i.titleName + "/" + i.chapter
 	createFolder(folder)
 	filePath := folder + "/" + i.filename
-	resp, err := getRespones(i.link)
+	client := http.Client{
+		Timeout: time.Second * 30,
+	}
+	resp, err := getRespones(&client, i.link)
 	count := 0
 	for resp.StatusCode == 520 && count < 5 {
 		time.Sleep(time.Millisecond * 3000)
-		resp, err = getRespones(i.link)
+		resp, err = getRespones(&client, i.link)
+		if resp.StatusCode == 520 {
+			resp.Body.Close()
+		}
 		count++
 	}
 	if resp.StatusCode == 520 {
@@ -59,18 +70,20 @@ func download(i image, wg *sync.WaitGroup) {
 		return
 	}
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("restp err: %v", err)
 	}
 	defer resp.Body.Close()
 
+	fileMutex.Lock()
+	defer fileMutex.Unlock()
 	file, err := os.Create(filePath)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("create: %v", err)
 	}
+	defer file.Close()
 	_, err = io.Copy(file, resp.Body)
-	//fmt.Println("Download success:", filePath)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("save image: %v", err)
 	}
 	wg.Done()
 }
@@ -173,6 +186,7 @@ func getChapter(chapter Chapter, mainWG *sync.WaitGroup) {
 
 	pages := data.PageItem
 	var wg sync.WaitGroup
+	titleName := strings.ReplaceAll(chapter.name, "/", "")
 	wg.Add(len(pages))
 	for _, page := range pages {
 		var filename string
@@ -186,7 +200,7 @@ func getChapter(chapter Chapter, mainWG *sync.WaitGroup) {
 			link:      getImageLink(filename, chapter.chapterID, chapter.title),
 			filename:  filename,
 			titleID:   chapter.title,
-			titleName: chapter.name,
+			titleName: titleName,
 		}
 		go download(i, &wg)
 	}
